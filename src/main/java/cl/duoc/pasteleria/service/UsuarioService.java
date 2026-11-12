@@ -13,7 +13,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,7 +31,11 @@ public class UsuarioService {
 
     @Transactional(readOnly = true)
     public List<UsuarioResponse> listar() {
-        return usuarioRepository.findAll().stream().map(this::aRespuesta).toList();
+        List<UsuarioResponse> lista = new ArrayList<>();
+        for (Usuario u : usuarioRepository.findAll()) {
+            lista.add(aRespuesta(u));
+        }
+        return lista;
     }
 
     @Transactional(readOnly = true)
@@ -99,16 +105,18 @@ public class UsuarioService {
                 .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado."));
     }
 
-    // Correo y RUN no se repiten (se ignora el mismo usuario al editar).
+    // Correo y RUN no se repiten. Al editar se ignora al mismo usuario (idActual).
     private void validarUnicos(String correo, String run, Long idActual) {
-        usuarioRepository.findByCorreoIgnoreCase(correo)
-                .filter(otro -> !otro.getId().equals(idActual))
-                .ifPresent(otro -> { throw new ConflictoException("Ya existe una cuenta con ese correo."); });
+        Optional<Usuario> conMismoCorreo = usuarioRepository.findByCorreoIgnoreCase(correo);
+        if (conMismoCorreo.isPresent() && !conMismoCorreo.get().getId().equals(idActual)) {
+            throw new ConflictoException("Ya existe una cuenta con ese correo.");
+        }
 
         if (run != null) {
-            usuarioRepository.findByRun(run)
-                    .filter(otro -> !otro.getId().equals(idActual))
-                    .ifPresent(otro -> { throw new ConflictoException("Ya existe una cuenta con ese RUN."); });
+            Optional<Usuario> conMismoRun = usuarioRepository.findByRun(run);
+            if (conMismoRun.isPresent() && !conMismoRun.get().getId().equals(idActual)) {
+                throw new ConflictoException("Ya existe una cuenta con ese RUN.");
+            }
         }
     }
 
@@ -118,7 +126,7 @@ public class UsuarioService {
         u.setApellidos(req.apellidos().trim());
         u.setCorreo(normalizarCorreo(req.correo()));
         u.setFechaNacimiento(req.fechaNacimiento());
-        u.setTelefono(vacioANull(req.telefono()));
+        u.setTelefono(normalizarTelefono(req.telefono()));
         u.setRegion(req.region());
         u.setComuna(req.comuna());
         u.setDireccion(vacioANull(req.direccion()));
@@ -133,6 +141,12 @@ public class UsuarioService {
     private String normalizarRun(String run) {
         if (run == null || run.isBlank()) return null;
         return run.replace(".", "").replace(" ", "").toUpperCase();
+    }
+
+    // Guarda solo dígitos y "+": "+56 9 1234-5678" queda "+56912345678".
+    private String normalizarTelefono(String telefono) {
+        if (telefono == null) return null;
+        return vacioANull(telefono.replaceAll("[^0-9+]", ""));
     }
 
     private String vacioANull(String texto) {

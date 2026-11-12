@@ -11,7 +11,7 @@ public record RegistroRequest(
         @NotBlank @Email(message = "Correo no válido") @Size(max = 100) String correo,
         @NotBlank @Size(min = 4, max = 10, message = "La contraseña debe tener entre 4 y 10 caracteres") String password,
         @Past(message = "La fecha de nacimiento debe ser pasada") LocalDate fechaNacimiento,
-        @Size(max = 15) String telefono,
+        @Size(max = 20) String telefono,
         String region,
         String comuna,
         @Size(max = 300) String direccion,
