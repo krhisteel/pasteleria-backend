@@ -1,8 +1,9 @@
-
 package cl.duoc.pasteleria.service;
 
 import cl.duoc.pasteleria.entity.Categoria;
+import cl.duoc.pasteleria.exception.ReglaNegocioException;
 import cl.duoc.pasteleria.repository.CategoriaRepository;
+import cl.duoc.pasteleria.repository.ProductoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ import java.util.List;
 public class CategoriaService {
 
     private final CategoriaRepository categoriaRepository;
+    private final ProductoRepository productoRepository;
 
     @Transactional(readOnly = true)
     public List<Categoria> listar() {
@@ -72,6 +74,12 @@ public class CategoriaService {
     public void eliminar(Long id) {
 
         Categoria categoria = buscarPorId(id);
+
+        if (productoRepository.existsByCategoriaId(id)) {
+            throw new ReglaNegocioException(
+                    "No se puede eliminar la categoría porque tiene productos asociados."
+            );
+        }
 
         categoriaRepository.delete(categoria);
     }
