@@ -5,11 +5,13 @@ import cl.duoc.pasteleria.entity.Usuario;
 import cl.duoc.pasteleria.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 // Crea las 3 cuentas demo al iniciar la aplicación (solo si no existen).
 @Component
+@ConditionalOnProperty(name = "app.data-initializer.disabled", havingValue = "false", matchIfMissing = true)
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 

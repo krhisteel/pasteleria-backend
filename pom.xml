@@ -115,4 +115,40 @@
             </plugin>
         </plugins>
     </build>
+    <!-- Opt-in y sin executions: nunca migra al arrancar Spring ni al ejecutar test. -->
+    <profiles>
+        <profile>
+            <id>migraciones</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.flywaydb</groupId>
+                        <artifactId>flyway-maven-plugin</artifactId>
+                        <version>${flyway.version}</version>
+                        <configuration>
+                            <baselineOnMigrate>false</baselineOnMigrate>
+                            <cleanDisabled>true</cleanDisabled>
+                            <validateOnMigrate>true</validateOnMigrate>
+                            <validateMigrationNaming>true</validateMigrationNaming>
+                            <locations>
+                                <location>filesystem:src/main/resources/db/migration</location>
+                            </locations>
+                        </configuration>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.flywaydb</groupId>
+                                <artifactId>flyway-mysql</artifactId>
+                                <version>${flyway.version}</version>
+                            </dependency>
+                            <dependency>
+                                <groupId>org.mariadb.jdbc</groupId>
+                                <artifactId>mariadb-java-client</artifactId>
+                                <version>${mariadb.version}</version>
+                            </dependency>
+                        </dependencies>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
