@@ -20,7 +20,6 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-// Convierte las excepciones en respuestas JSON con el código HTTP correcto.
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -36,8 +35,8 @@ public class GlobalExceptionHandler {
         return responder(HttpStatus.CONFLICT, e.getMessage());
     }
 
-    @ExceptionHandler(ReglaNegocioException.class)
-    public ResponseEntity<ErrorResponse> reglaNegocio(ReglaNegocioException e) {
+    @ExceptionHandler({ReglaNegocioException.class, IllegalArgumentException.class})
+    public ResponseEntity<ErrorResponse> reglaNegocio(RuntimeException e) {
         return responder(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 
@@ -51,7 +50,6 @@ public class GlobalExceptionHandler {
         return responder(HttpStatus.FORBIDDEN, "No tienes permisos para esta acción.");
     }
 
-    // Errores de @Valid: indica qué campo falló y por qué.
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> validacion(MethodArgumentNotValidException e) {
         Map<String, String> errores = new HashMap<>();
@@ -61,37 +59,31 @@ public class GlobalExceptionHandler {
                 new ErrorResponse(400, "Datos inválidos", errores, LocalDateTime.now()));
     }
 
-    // JSON mal escrito o con un formato incorrecto (ej: fecha "10-05-1970" en vez de "1970-05-10").
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> jsonInvalido(HttpMessageNotReadableException e) {
         return responder(HttpStatus.BAD_REQUEST, "El cuerpo de la petición no es válido. Revisa el JSON y el formato de las fechas (AAAA-MM-DD).");
     }
 
-    // Parámetro de la URL con tipo incorrecto (ej: /usuarios/abc en vez de /usuarios/5).
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> parametroInvalido(MethodArgumentTypeMismatchException e) {
         return responder(HttpStatus.BAD_REQUEST, "El parámetro '" + e.getName() + "' tiene un formato inválido.");
     }
 
-    // Ruta que no existe.
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ErrorResponse> rutaNoEncontrada(NoResourceFoundException e) {
         return responder(HttpStatus.NOT_FOUND, "La ruta solicitada no existe.");
     }
 
-    // Método HTTP no soportado por la ruta (ej: PATCH donde solo hay PUT).
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ErrorResponse> metodoNoPermitido(HttpRequestMethodNotSupportedException e) {
         return responder(HttpStatus.METHOD_NOT_ALLOWED, "Método HTTP no permitido en esta ruta.");
     }
 
-    // Content-Type distinto de application/json.
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ErrorResponse> tipoNoSoportado(HttpMediaTypeNotSupportedException e) {
         return responder(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "El contenido debe enviarse como application/json.");
     }
 
-    // Cualquier otro error: se registra en la consola para poder revisarlo.
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> general(Exception e) {
         log.error("Error no controlado", e);

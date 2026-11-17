@@ -1,4 +1,3 @@
-
 package cl.duoc.pasteleria.entity;
 
 import jakarta.persistence.*;
@@ -67,7 +66,7 @@ public class Producto {
     private Boolean activo = true;
 
     @NotNull(message = "La categoría es obligatoria")
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "categoria_id", nullable = false)
     private Categoria categoria;
 }
