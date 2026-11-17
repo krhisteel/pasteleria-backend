@@ -51,11 +51,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/productos/**", "/api/v1/categorias/**").permitAll()
                         .requestMatchers("/api/v1/productos/**", "/api/v1/categorias/**").hasRole("ADMIN")
 
-                        // Boletas (Persona 3): usuario logueado compra y ve las suyas;
-                        // ADMIN y VENDEDOR ven todas; solo ADMIN modifica.
-                        .requestMatchers(HttpMethod.POST, "/api/v1/boletas").authenticated()
+                        // Boletas: ADMIN y CLIENTE crean; VENDEDOR solo consulta.
+                        // Mantener las excepciones antes de las reglas generales.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/boletas").hasAnyRole("ADMIN", "CLIENTE")
+                        // El futuro servicio debe filtrar por el usuario autenticado.
                         .requestMatchers(HttpMethod.GET, "/api/v1/boletas/mis-boletas").authenticated()
+                        // Listado y detalle administrativos; no son el detalle propio del cliente.
                         .requestMatchers(HttpMethod.GET, "/api/v1/boletas/**").hasAnyRole("ADMIN", "VENDEDOR")
+                        // Incluye PUT, PATCH y DELETE; no ampliar esta regla por autenticación.
                         .requestMatchers("/api/v1/boletas/**").hasRole("ADMIN")
 
                         // Usuarios: solo ADMIN.
