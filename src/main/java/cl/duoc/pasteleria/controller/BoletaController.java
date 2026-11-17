@@ -2,6 +2,7 @@ package cl.duoc.pasteleria.controller;
 
 import cl.duoc.pasteleria.dto.BoletaResponse;
 import cl.duoc.pasteleria.dto.CompraRequest;
+import cl.duoc.pasteleria.dto.EstadoBoletaRequest;
 import cl.duoc.pasteleria.service.BoletaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -15,8 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-// Compras y boletas. Permisos (SecurityConfig + @PreAuthorize):
-// comprar y ver mis boletas = cualquier usuario con sesión; ver todas = ADMIN y VENDEDOR.
 @RestController
 @RequestMapping("/api/v1/boletas")
 @RequiredArgsConstructor
@@ -52,5 +51,14 @@ public class BoletaController {
     @Operation(summary = "Obtiene una boleta con su detalle (ADMIN y VENDEDOR)")
     public BoletaResponse obtener(@PathVariable Long id) {
         return boletaService.obtener(id);
+    }
+
+    @PatchMapping("/{id}/estado")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Actualiza el estado de una boleta (solo ADMIN)",
+            description = "Cambia el estado de la orden. Si pasa a 'cancelado', restituye el stock al inventario.")
+    public BoletaResponse actualizarEstado(@PathVariable Long id,
+                                           @Valid @RequestBody EstadoBoletaRequest req) {
+        return boletaService.actualizarEstado(id, req.estado());
     }
 }

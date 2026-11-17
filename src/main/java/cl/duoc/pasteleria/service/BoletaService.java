@@ -27,19 +27,19 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class BoletaService {
 
+    private static final Set<String> ESTADOS_PERMITIDOS =
+            Set.of("pendiente", "procesando", "enviado", "completado", "cancelado");
+
     private final BoletaRepository boletaRepository;
     private final ProductoRepository productoRepository;
     private final UsuarioRepository usuarioRepository;
     private final BeneficioService beneficioService;
 
-    // Confirma una compra. @Transactional: si algo falla a la mitad (por ejemplo, sin stock),
-    // no se guarda la boleta ni se descuenta el stock de ningún producto.
     @Transactional
     public BoletaResponse comprar(String correo, CompraRequest req) {
         Usuario usuario = usuarioRepository.findByCorreoIgnoreCase(correo)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado."));
 
-        // Beneficio del usuario: el mayor entre 50% por edad y 10% por FELICES50 (no se suman).
         Beneficios beneficios = beneficioService.calcular(usuario);
         int descuentoUsuario = Math.max(beneficios.descuentoEdad(), beneficios.descuentoCodigo());
 
@@ -75,14 +75,11 @@ public class BoletaService {
                         + " unidades de \"" + producto.getNombre() + "\".");
             }
 
-            // Precio calculado en el servidor: se aplica el MAYOR descuento
-            // entre la oferta del producto y el beneficio del usuario (igual que el frontend).
             int precioBase = producto.getPrecio().intValue();
             int descuentoProducto = producto.getDescuento() == null ? 0 : producto.getDescuento().intValue();
             int descuento = Math.max(descuentoProducto, descuentoUsuario);
             int precioFinal = (int) Math.round(precioBase * (1 - descuento / 100.0));
 
-            // Descuenta el stock (se guarda al terminar la transacción).
             producto.setStock(producto.getStock() - item.cantidad());
 
             DetalleBoleta detalle = new DetalleBoleta();
@@ -107,7 +104,6 @@ public class BoletaService {
         return BoletaResponse.from(boletaRepository.save(boleta));
     }
 
-    // Boletas del usuario con sesión (cliente).
     @Transactional(readOnly = true)
     public List<BoletaResponse> misBoletas(String correo) {
         List<BoletaResponse> lista = new ArrayList<>();
@@ -117,7 +113,6 @@ public class BoletaService {
         return lista;
     }
 
-    // Todas las boletas (ADMIN y VENDEDOR).
     @Transactional(readOnly = true)
     public List<BoletaResponse> listar() {
         List<BoletaResponse> lista = new ArrayList<>();
@@ -127,11 +122,45 @@ public class BoletaService {
         return lista;
     }
 
-    // Una boleta con su detalle (ADMIN y VENDEDOR).
     @Transactional(readOnly = true)
     public BoletaResponse obtener(Long id) {
         Boleta boleta = boletaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Boleta no encontrada."));
         return BoletaResponse.from(boleta);
+    }
+
+    // Actualiza el estado de una orden (solo ADMIN). Si pasa a "cancelado", devuelve el stock.
+    @Transactional
+    public BoletaResponse actualizarEstado(Long id, String nuevoEstado) {
+        String estadoNormalizado = nuevoEstado == null ? "" : nuevoEstado.trim().toLowerCase();
+
+        if (!ESTADOS_PERMITIDOS.contains(estadoNormalizado)) {
+            throw new ReglaNegocioException("El estado seleccionado no es válido.");
+        }
+
+        Boleta boleta = boletaRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Boleta no encontrada."));
+
+        String estadoActual = boleta.getEstado() == null ? "pendiente" : boleta.getEstado();
+
+        if (estadoActual.equals(estadoNormalizado)) {
+            return BoletaResponse.from(boleta);
+        }
+
+        if ("cancelado".equals(estadoActual)) {
+            throw new ReglaNegocioException(
+                    "Una orden cancelada no se puede reactivar. Debe realizarse una compra nueva."
+            );
+        }
+
+        if ("cancelado".equals(estadoNormalizado)) {
+            for (DetalleBoleta detalle : boleta.getDetalles()) {
+                Producto producto = detalle.getProducto();
+                producto.setStock(producto.getStock() + detalle.getCantidad());
+            }
+        }
+
+        boleta.setEstado(estadoNormalizado);
+        return BoletaResponse.from(boletaRepository.save(boleta));
     }
 }
