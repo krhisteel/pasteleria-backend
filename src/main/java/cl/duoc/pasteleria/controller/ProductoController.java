@@ -25,6 +25,11 @@ public class ProductoController {
         return ResponseEntity.ok(productoService.listarActivos());
     }
 
+    @GetMapping("/admin")
+    public ResponseEntity<List<ProductoResponseDTO>> listarAdministracion() {
+        return ResponseEntity.ok(productoService.listar());
+    }
+
     // Buscar un producto por su ID
     @GetMapping("/{id}")
     public ResponseEntity<ProductoResponseDTO> buscarPorId(

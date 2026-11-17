@@ -17,6 +17,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
+import org.springframework.dao.DataIntegrityViolationException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -89,6 +90,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ErrorResponse> tipoNoSoportado(HttpMediaTypeNotSupportedException e) {
         return responder(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "El contenido debe enviarse como application/json.");
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> integridad(DataIntegrityViolationException e) {
+        return responder(HttpStatus.CONFLICT, "La operacion entra en conflicto con datos existentes: codigo o nombre duplicado, o categoria con productos asociados.");
     }
 
     // Cualquier otro error: se registra en la consola para poder revisarlo.

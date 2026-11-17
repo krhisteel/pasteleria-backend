@@ -2,6 +2,8 @@
 package cl.duoc.pasteleria.service;
 
 import cl.duoc.pasteleria.entity.Categoria;
+import cl.duoc.pasteleria.repository.ProductoRepository;
+import cl.duoc.pasteleria.exception.*;
 import cl.duoc.pasteleria.repository.CategoriaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,7 @@ import java.util.List;
 public class CategoriaService {
 
     private final CategoriaRepository categoriaRepository;
+    private final ProductoRepository productoRepository;
 
     @Transactional(readOnly = true)
     public List<Categoria> listar() {
@@ -24,7 +27,7 @@ public class CategoriaService {
     public Categoria buscarPorId(Long id) {
         return categoriaRepository.findById(id)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new RecursoNoEncontradoException(
                                 "No existe una categoría con ID: " + id
                         )
                 );
@@ -36,7 +39,7 @@ public class CategoriaService {
         String nombre = validarNombre(categoria.getNombre());
 
         if (categoriaRepository.existsByNombreIgnoreCase(nombre)) {
-            throw new IllegalArgumentException(
+            throw new ConflictoException(
                     "Ya existe una categoría con ese nombre"
             );
         }
@@ -56,7 +59,7 @@ public class CategoriaService {
         categoriaRepository.findByNombreIgnoreCase(nombre)
                 .ifPresent(existente -> {
                     if (!existente.getId().equals(id)) {
-                        throw new IllegalArgumentException(
+                        throw new ConflictoException(
                                 "Ya existe una categoría con ese nombre"
                         );
                     }
@@ -73,22 +76,26 @@ public class CategoriaService {
 
         Categoria categoria = buscarPorId(id);
 
+        if (productoRepository.existsByCategoriaId(id)) {
+            throw new ConflictoException("No se puede eliminar la categoria: tiene productos asociados, activos o inactivos.");
+        }
         categoriaRepository.delete(categoria);
+        categoriaRepository.flush();
     }
 
     private String validarNombre(String nombre) {
 
         if (nombre == null || nombre.isBlank()) {
-            throw new IllegalArgumentException(
+            throw new ReglaNegocioException(
                     "El nombre de la categoría es obligatorio"
             );
         }
 
         String limpio = nombre.trim();
 
-        if (limpio.length() > 100) {
-            throw new IllegalArgumentException(
-                    "El nombre no puede superar los 100 caracteres"
+        if (limpio.length() < 3 || limpio.length() > 100) {
+            throw new ReglaNegocioException(
+                    "El nombre debe tener entre 3 y 100 caracteres"
             );
         }
 

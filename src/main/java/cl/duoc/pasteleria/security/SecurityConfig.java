@@ -47,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 
                         // Catálogo (Persona 2): todos lo ven, solo ADMIN lo modifica.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/productos/admin").hasAnyRole("ADMIN", "VENDEDOR")
                         .requestMatchers(HttpMethod.GET, "/api/v1/productos/**", "/api/v1/categorias/**").permitAll()
                         .requestMatchers("/api/v1/productos/**", "/api/v1/categorias/**").hasRole("ADMIN")
 

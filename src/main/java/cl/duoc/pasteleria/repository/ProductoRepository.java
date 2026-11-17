@@ -14,7 +14,9 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
 
     List<Producto> findByCategoriaIdAndActivoTrue(Long categoriaId);
 
-    List<Producto> findByNombreContainingIgnoreCase(String nombre);
+    List<Producto> findByNombreContainingIgnoreCaseAndActivoTrue(String nombre);
+
+    boolean existsByCodigoIgnoreCase(String codigo);
 
     boolean existsByCategoriaId(Long categoriaId);
 }
