@@ -1,6 +1,7 @@
 
 package cl.duoc.pasteleria.controller;
 
+import cl.duoc.pasteleria.dto.ProductoResponseDTO;
 import cl.duoc.pasteleria.entity.Producto;
 import cl.duoc.pasteleria.service.ProductoService;
 import jakarta.validation.Valid;
@@ -20,15 +21,13 @@ public class ProductoController {
 
     // Listar productos activos para el catálogo
     @GetMapping
-    public ResponseEntity<List<Producto>> listar() {
-        return ResponseEntity.ok(
-                productoService.listarActivos()
-        );
+    public ResponseEntity<List<ProductoResponseDTO>> listar() {
+        return ResponseEntity.ok(productoService.listarActivos());
     }
 
-    // Obtener un producto por ID
+    // Buscar un producto por su ID
     @GetMapping("/{id}")
-    public ResponseEntity<Producto> buscarPorId(
+    public ResponseEntity<ProductoResponseDTO> buscarPorId(
             @PathVariable Long id) {
 
         return ResponseEntity.ok(
@@ -38,7 +37,7 @@ public class ProductoController {
 
     // Buscar productos por nombre
     @GetMapping("/buscar")
-    public ResponseEntity<List<Producto>> buscar(
+    public ResponseEntity<List<ProductoResponseDTO>> buscarPorNombre(
             @RequestParam String nombre) {
 
         return ResponseEntity.ok(
@@ -46,9 +45,9 @@ public class ProductoController {
         );
     }
 
-    // Filtrar productos activos por categoría
+    // Listar productos activos de una categoría
     @GetMapping("/categoria/{categoriaId}")
-    public ResponseEntity<List<Producto>> porCategoria(
+    public ResponseEntity<List<ProductoResponseDTO>> buscarPorCategoria(
             @PathVariable Long categoriaId) {
 
         return ResponseEntity.ok(
@@ -56,21 +55,21 @@ public class ProductoController {
         );
     }
 
-    // Crear un producto
+    // Crear producto
     @PostMapping
-    public ResponseEntity<Producto> crear(
+    public ResponseEntity<ProductoResponseDTO> crear(
             @Valid @RequestBody Producto producto) {
 
-        Producto nuevo = productoService.crear(producto);
+        ProductoResponseDTO creado = productoService.crear(producto);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(nuevo);
+                .body(creado);
     }
 
-    // Actualizar un producto
+    // Actualizar producto
     @PutMapping("/{id}")
-    public ResponseEntity<Producto> actualizar(
+    public ResponseEntity<ProductoResponseDTO> actualizar(
             @PathVariable Long id,
             @Valid @RequestBody Producto producto) {
 
@@ -79,7 +78,7 @@ public class ProductoController {
         );
     }
 
-    // Desactivar un producto
+    // Eliminación lógica del producto
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(
             @PathVariable Long id) {

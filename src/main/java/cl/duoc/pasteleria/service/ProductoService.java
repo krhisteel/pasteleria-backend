@@ -1,6 +1,7 @@
 
 package cl.duoc.pasteleria.service;
 
+import cl.duoc.pasteleria.dto.ProductoResponseDTO;
 import cl.duoc.pasteleria.entity.Categoria;
 import cl.duoc.pasteleria.entity.Producto;
 import cl.duoc.pasteleria.repository.CategoriaRepository;
@@ -19,44 +20,55 @@ public class ProductoService {
     private final ProductoRepository productoRepository;
     private final CategoriaRepository categoriaRepository;
 
+    // Listar todos los productos, incluidos los inactivos
     @Transactional(readOnly = true)
-    public List<Producto> listar() {
-        return productoRepository.findAll();
+    public List<ProductoResponseDTO> listar() {
+        return productoRepository.findAll()
+                .stream()
+                .map(ProductoResponseDTO::desdeEntidad)
+                .toList();
     }
 
+    // Listar solamente productos activos
     @Transactional(readOnly = true)
-    public List<Producto> listarActivos() {
-        return productoRepository.findByActivoTrue();
+    public List<ProductoResponseDTO> listarActivos() {
+        return productoRepository.findByActivoTrue()
+                .stream()
+                .map(ProductoResponseDTO::desdeEntidad)
+                .toList();
     }
 
+    // Buscar producto por ID
     @Transactional(readOnly = true)
-    public Producto buscarPorId(Long id) {
-        return productoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No existe un producto con ID: " + id
-                ));
+    public ProductoResponseDTO buscarPorId(Long id) {
+        Producto producto = obtenerProducto(id);
+        return ProductoResponseDTO.desdeEntidad(producto);
     }
 
+    // Buscar productos activos por categoría
     @Transactional(readOnly = true)
-    public List<Producto> buscarPorCategoria(Long categoriaId) {
-        return productoRepository
-                .findByCategoriaIdAndActivoTrue(categoriaId);
+    public List<ProductoResponseDTO> buscarPorCategoria(Long categoriaId) {
+        return productoRepository.findByCategoriaIdAndActivoTrue(categoriaId)
+                .stream()
+                .map(ProductoResponseDTO::desdeEntidad)
+                .toList();
     }
 
+    // Buscar productos por nombre
     @Transactional(readOnly = true)
-    public List<Producto> buscarPorNombre(String nombre) {
-        return productoRepository
-                .findByNombreContainingIgnoreCase(nombre);
+    public List<ProductoResponseDTO> buscarPorNombre(String nombre) {
+        return productoRepository.findByNombreContainingIgnoreCase(nombre)
+                .stream()
+                .map(ProductoResponseDTO::desdeEntidad)
+                .toList();
     }
 
+    // Crear un producto
     @Transactional
-    public Producto crear(Producto producto) {
-
+    public ProductoResponseDTO crear(Producto producto) {
         validarProducto(producto);
 
-        Categoria categoria = obtenerCategoria(
-                producto.getCategoria().getId()
-        );
+        Categoria categoria = obtenerCategoria(producto.getCategoria().getId());
 
         producto.setId(null);
         producto.setNombre(producto.getNombre().trim());
@@ -67,19 +79,17 @@ public class ProductoService {
             producto.setCodigo(producto.getCodigo().trim());
         }
 
-        return productoRepository.save(producto);
+        Producto guardado = productoRepository.save(producto);
+        return ProductoResponseDTO.desdeEntidad(guardado);
     }
 
+    // Actualizar un producto existente
     @Transactional
-    public Producto actualizar(Long id, Producto datos) {
-
-        Producto producto = buscarPorId(id);
-
+    public ProductoResponseDTO actualizar(Long id, Producto datos) {
+        Producto producto = obtenerProducto(id);
         validarProducto(datos);
 
-        Categoria categoria = obtenerCategoria(
-                datos.getCategoria().getId()
-        );
+        Categoria categoria = obtenerCategoria(datos.getCategoria().getId());
 
         producto.setNombre(datos.getNombre().trim());
         producto.setDescripcion(datos.getDescripcion());
@@ -99,29 +109,39 @@ public class ProductoService {
             producto.setActivo(datos.getActivo());
         }
 
-        return productoRepository.save(producto);
+        Producto actualizado = productoRepository.save(producto);
+        return ProductoResponseDTO.desdeEntidad(actualizado);
     }
 
+    // Eliminación lógica: no borra el registro de MySQL
     @Transactional
     public void eliminar(Long id) {
-
-        Producto producto = buscarPorId(id);
-
-        // Eliminación lógica: conserva el registro
-        // para no perder referencias de compras.
+        Producto producto = obtenerProducto(id);
         producto.setActivo(false);
-
         productoRepository.save(producto);
     }
 
-    private Categoria obtenerCategoria(Long id) {
-
-        return categoriaRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No existe una categoría con ID: " + id
-                ));
+    // Obtener producto o lanzar error
+    private Producto obtenerProducto(Long id) {
+        return productoRepository.findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "No existe un producto con ID: " + id
+                        )
+                );
     }
 
+    // Obtener categoría o lanzar error
+    private Categoria obtenerCategoria(Long id) {
+        return categoriaRepository.findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "No existe una categoría con ID: " + id
+                        )
+                );
+    }
+
+    // Validaciones de producto
     private void validarProducto(Producto producto) {
 
         if (producto == null) {
@@ -130,9 +150,8 @@ public class ProductoService {
             );
         }
 
-        // Validar nombre
-        if (producto.getNombre() == null
-                || producto.getNombre().isBlank()) {
+        if (producto.getNombre() == null ||
+                producto.getNombre().isBlank()) {
             throw new IllegalArgumentException(
                     "El nombre del producto es obligatorio"
             );
@@ -144,51 +163,46 @@ public class ProductoService {
             );
         }
 
-        // Validar precio
-        if (producto.getPrecio() == null
-                || producto.getPrecio().compareTo(BigDecimal.ZERO) <= 0) {
+        if (producto.getPrecio() == null ||
+                producto.getPrecio().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException(
                     "El precio debe ser mayor que cero"
             );
         }
 
-        // Validar stock
-        if (producto.getStock() == null
-                || producto.getStock() < 0) {
+        if (producto.getStock() == null ||
+                producto.getStock() < 0) {
             throw new IllegalArgumentException(
                     "El stock no puede ser negativo"
             );
         }
 
-        // Validar categoría
-        if (producto.getCategoria() == null
-                || producto.getCategoria().getId() == null) {
+        if (producto.getCategoria() == null ||
+                producto.getCategoria().getId() == null) {
             throw new IllegalArgumentException(
                     "Debes seleccionar una categoría"
             );
         }
 
-        // Validar código
-        if (producto.getCodigo() != null
-                && producto.getCodigo().trim().length() > 20) {
+        if (producto.getCodigo() != null &&
+                producto.getCodigo().trim().length() > 20) {
             throw new IllegalArgumentException(
                     "El código no puede superar los 20 caracteres"
             );
         }
 
-        // Validar stock crítico
-        if (producto.getStockCritico() != null
-                && producto.getStockCritico() < 0) {
+        if (producto.getStockCritico() != null &&
+                producto.getStockCritico() < 0) {
             throw new IllegalArgumentException(
                     "El stock crítico no puede ser negativo"
             );
         }
 
-        // Validar descuento (porcentaje entre 0 y 100)
-        if (producto.getDescuento() != null
-                && (producto.getDescuento().compareTo(BigDecimal.ZERO) < 0
-                || producto.getDescuento().compareTo(
-                new BigDecimal("100")) > 0)) {
+        if (producto.getDescuento() != null &&
+                (producto.getDescuento().compareTo(BigDecimal.ZERO) < 0 ||
+                        producto.getDescuento().compareTo(
+                                new BigDecimal("100")
+                        ) > 0)) {
             throw new IllegalArgumentException(
                     "El descuento debe estar entre 0 y 100"
             );
