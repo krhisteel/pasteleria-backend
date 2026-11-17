@@ -3,6 +3,8 @@ package cl.duoc.pasteleria.service;
 import cl.duoc.pasteleria.dto.BoletaResponse;
 import cl.duoc.pasteleria.dto.CompraRequest;
 import cl.duoc.pasteleria.dto.ItemCompraRequest;
+import cl.duoc.pasteleria.entity.Boleta;
+import cl.duoc.pasteleria.entity.DetalleBoleta;
 import cl.duoc.pasteleria.entity.Producto;
 import cl.duoc.pasteleria.entity.Rol;
 import cl.duoc.pasteleria.entity.Usuario;
@@ -54,7 +56,6 @@ class BoletaServiceTest {
 
     @Test
     void calculaTotalesConElMayorDescuentoYDescuentaStock() {
-        // Usuario de 56 años (50%) y producto con oferta de 15%: se aplica el mayor, 50%.
         Producto torta = producto(50000, 15, 10);
         when(usuarioRepository.findByCorreoIgnoreCase("cliente@gmail.com"))
                 .thenReturn(Optional.of(cliente(LocalDate.of(1970, 1, 1))));
@@ -67,7 +68,7 @@ class BoletaServiceTest {
         assertEquals(50000, boleta.total());
         assertEquals(50000, boleta.ahorro());
         assertEquals(50, boleta.productos().get(0).descuentoAplicado());
-        assertEquals(8, torta.getStock()); // 10 - 2
+        assertEquals(8, torta.getStock());
     }
 
     @Test
@@ -79,7 +80,7 @@ class BoletaServiceTest {
 
         BoletaResponse boleta = boletaService.comprar("cliente@gmail.com", compra(1));
 
-        assertEquals(42500, boleta.total()); // 50000 con 15% de descuento
+        assertEquals(42500, boleta.total());
     }
 
     @Test
@@ -90,7 +91,7 @@ class BoletaServiceTest {
 
         assertThrows(ConflictoException.class, () -> boletaService.comprar("cliente@gmail.com", compra(2)));
         verify(boletaRepository, never()).save(any());
-        assertEquals(1, torta.getStock()); // el stock no cambió
+        assertEquals(1, torta.getStock());
     }
 
     @Test
@@ -102,5 +103,37 @@ class BoletaServiceTest {
 
         assertThrows(ReglaNegocioException.class, () -> boletaService.comprar("cliente@gmail.com", compra(1)));
         verify(boletaRepository, never()).save(any());
+    }
+
+    @Test
+    void cancelarOrdenRestituyeStockAlInventario() {
+        Producto torta = producto(50000, 0, 5);
+        DetalleBoleta detalle = DetalleBoleta.builder()
+                .producto(torta).nombreProducto("Torta de Frutas").cantidad(3)
+                .precioBase(50000).descuentoAplicado(0).precioFinal(50000).subtotal(150000)
+                .build();
+        Boleta boleta = Boleta.builder()
+                .id(1L).usuario(cliente(null)).estado("pendiente").nombre("Cliente Demo")
+                .direccion("Calle 123").descuentoUsuario(0).subtotal(150000).ahorro(0).total(150000)
+                .detalles(List.of(detalle))
+                .build();
+
+        when(boletaRepository.findById(1L)).thenReturn(Optional.of(boleta));
+        when(boletaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        BoletaResponse resp = boletaService.actualizarEstado(1L, "cancelado");
+
+        assertEquals("cancelado", resp.estado());
+        assertEquals(8, torta.getStock());
+    }
+
+    @Test
+    void noPermiteReactivarOrdenCancelada() {
+        Boleta boleta = Boleta.builder()
+                .id(1L).usuario(cliente(null)).estado("cancelado")
+                .build();
+        when(boletaRepository.findById(1L)).thenReturn(Optional.of(boleta));
+
+        assertThrows(ReglaNegocioException.class, () -> boletaService.actualizarEstado(1L, "procesando"));
     }
 }
