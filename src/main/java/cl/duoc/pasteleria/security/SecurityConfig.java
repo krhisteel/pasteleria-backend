@@ -50,9 +50,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/productos/**", "/api/v1/categorias/**").permitAll()
                         .requestMatchers("/api/v1/productos/**", "/api/v1/categorias/**").hasRole("ADMIN")
 
-                        // Boletas (Persona 3): usuario logueado compra y ve las suyas;
+                        // Boletas: ADMIN y CLIENTE compran; cada usuario ve las suyas;
                         // ADMIN y VENDEDOR ven todas; solo ADMIN modifica.
-                        .requestMatchers(HttpMethod.POST, "/api/v1/boletas").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/boletas").hasAnyRole("ADMIN", "CLIENTE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/boletas/mis-boletas").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/boletas/**").hasAnyRole("ADMIN", "VENDEDOR")
                         .requestMatchers("/api/v1/boletas/**").hasRole("ADMIN")
