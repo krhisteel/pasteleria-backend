@@ -1,12 +1,14 @@
-# Levanta MySQL + backend con un solo comando: docker compose up --build
+# Alternativa existente de ejecucion; no es necesaria para usar MariaDB externa.
 services:
   db:
     image: mysql:8.4
     environment:
-      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"   # root sin contraseña, igual que XAMPP
-      MYSQL_DATABASE: pasteleria_db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Defina MYSQL_ROOT_PASSWORD fuera del repositorio}
+      MYSQL_DATABASE: ${DB_NAME:?Defina DB_NAME}
+      MYSQL_USER: ${DB_USER:?Defina un DB_USER distinto de root}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD fuera del repositorio}
     ports:
-      - "3307:3306"   # 3307 para no chocar con el MySQL de XAMPP (3306)
+      - "127.0.0.1:${DB_PORT:-3307}:3306"
     volumes:
       - datos-mysql:/var/lib/mysql
     healthcheck:
@@ -18,12 +20,17 @@ services:
   backend:
     build: .
     ports:
-      - "8080:8080"
+      - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     environment:
-      # Dentro de Docker la base se llama "db" (el nombre del servicio), no localhost.
-      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/pasteleria_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Santiago
-      DB_USER: root
-      DB_PASSWORD: ""
+      DB_URL: jdbc:mysql://db:3306/${DB_NAME:?Defina DB_NAME}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Santiago
+      DB_USER: ${DB_USER:?Defina DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET fuera del repositorio}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-}
+      DEMO_VENDEDOR_PASSWORD: ${DEMO_VENDEDOR_PASSWORD:-}
+      DEMO_CLIENTE_PASSWORD: ${DEMO_CLIENTE_PASSWORD:-}
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-validate}
+      APP_CORS_ORIGINS: ${APP_CORS_ORIGINS:-http://localhost:5173}
     depends_on:
       db:
         condition: service_healthy
