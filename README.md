@@ -1,42 +1,65 @@
-# Pastelería 1000 Sabores — Backend EV3
+# Pastelería 1000 Sabores — Backend
 
-Spring Boot 3.5.7 con Java 17, JPA, Spring Security, JWT y Swagger. Conserva usuarios, categorías, productos, compras, boletas y los permisos existentes.
+API de nuestra tienda de pastelería, desarrollada para Desarrollo Fullstack II de DUOC.
+
+Se conecta con MariaDB y entrega los datos que utiliza el frontend: usuarios, productos, categorías, compras y boletas.
+
+## Tecnologías
+
+- Java 17 y Spring Boot 3.5.7.
+- Spring Data JPA.
+- Spring Security y JWT.
+- MariaDB, con MySQL Connector/J.
+- Swagger para consultar y probar la API.
+- Maven Wrapper.
+
+## Funcionalidades
+
+- Registro, login y renovación de JWT.
+- CRUD de productos y categorías.
+- Compras con pago simulado y generación de boletas.
+- Consulta de órdenes e historial de compras.
+- Acceso según el rol del usuario.
+
+ADMIN tiene acceso a las funciones administrativas. VENDEDOR solo puede consultar productos y órdenes. CLIENTE puede comprar y revisar sus propias boletas.
 
 ## Requisitos
 
-- JDK 17 y Maven Wrapper incluido.
-- Una base MariaDB creada y, para la primera preparación, completamente vacía.
-- Un usuario de base de datos con acceso únicamente a esa base. Durante la preparación necesita crear tablas e índices y relacionarlas (`CREATE`, `ALTER`, `INDEX`, `REFERENCES`), además de leer e insertar las cuentas demo. Para la ejecución normal, necesita `SELECT`, `INSERT`, `UPDATE` y `DELETE`.
-- React con su origen permitido en CORS.
+Necesitas JDK 17 y una base MariaDB creada.
 
-No se necesita utilizar los puertos ni las credenciales del entorno de pruebas anterior. El host, puerto y nombre de base se eligen mediante variables. Este proyecto no crea la base automáticamente.
+Para preparar el esquema por primera vez, utiliza una base vacía y un usuario con permisos para crear las tablas. En la ejecución normal, el usuario de la aplicación necesita permisos de lectura y escritura sobre esa base.
 
-## 1. Configurar la terminal de ejecución
+## Configuración
 
-Ejemplo para PowerShell. Sustituir los datos de conexión por los propios; la base del ejemplo no se crea al ejecutar estos comandos.
+Desde PowerShell, comprueba que Java y Maven utilicen JDK 17:
 
 ```powershell
-$env:JAVA_HOME = Read-Host 'Ruta de la instalación JDK 17'
-$env:Path = "$env:JAVA_HOME\bin;$env:Path"
 java -version
 .\mvnw.cmd -version
+```
 
+Configura la conexión y los puertos en esa misma terminal:
+
+```powershell
 $env:DB_URL = 'jdbc:mysql://127.0.0.1:3306/pasteleria_ev3?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Santiago'
-$env:DB_USER = Read-Host 'Usuario de MariaDB limitado a esa base'
-$claveDb = Read-Host 'Contraseña del usuario de MariaDB' -AsSecureString
+$env:DB_USER = Read-Host 'Usuario de la base de datos'
+$claveDb = Read-Host 'Contraseña de la base de datos' -AsSecureString
 $env:DB_PASSWORD = [System.Net.NetworkCredential]::new('', $claveDb).Password
 
 $env:SERVER_PORT = '8080'
 $env:APP_CORS_ORIGINS = 'http://localhost:5173'
+$env:JPA_DDL_AUTO = 'validate'
 ```
 
-El controlador incluido es MySQL Connector/J, por lo que la URL usa `jdbc:mysql://` también para MariaDB. En servidores remotos, configurar TLS según el servidor; los parámetros del ejemplo son para ejecución local. Si se cambia el puerto del backend o frontend, ajustar también `VITE_API_URL` y `APP_CORS_ORIGINS`. `localhost` y `127.0.0.1` son orígenes distintos para CORS.
+Cambia el host, puerto y nombre de la base según tu instalación. La aplicación no crea la base de datos.
 
-Variables obligatorias: `DB_URL`, `DB_USER`, `DB_PASSWORD` y `JWT_SECRET`. Spring Boot también acepta sus variables estándar `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` y `SPRING_DATASOURCE_PASSWORD`; utilizar una sola forma de configuración para evitar valores contradictorios.
+La URL utiliza `jdbc:mysql://` porque el proyecto incluye MySQL Connector/J, también utilizado para conectarse a MariaDB. Los parámetros del ejemplo son para una conexión local; en un servidor remoto debes configurar TLS.
 
-## 2. Configurar JWT sin una clave pública de respaldo
+### Clave JWT
 
-Generar una clave privada para esta instalación y conservarla fuera de Git. No ejecutar de nuevo esta generación en cada reinicio: para conservar las sesiones, reutilizar la misma clave privada.
+`JWT_SECRET` es obligatorio. Debe contener una clave privada en Base64 con al menos 32 bytes aleatorios.
+
+Puedes generar una para tu instalación sin mostrarla en pantalla:
 
 ```powershell
 $bytesJwt = New-Object byte[] 64
@@ -46,17 +69,23 @@ $rng.Dispose()
 $env:JWT_SECRET = [Convert]::ToBase64String($bytesJwt)
 ```
 
-La variable contiene Base64 de bytes aleatorios; el backend requiere al menos 32 bytes decodificados. El código no ofrece un secreto predeterminado. No imprimir ni guardar el valor en documentos, capturas o archivos versionados.
+Guárdala fuera del repositorio y reutiliza la misma en los siguientes arranques para mantener la validez de las sesiones. No la incluyas en documentos ni capturas.
 
-## 3. Configurar las tres cuentas demo
+### Cuentas de demostración
 
-Las cuentas conservan sus correos y roles: `admin@duoc.cl` (ADMIN), `vendedor@duoc.cl` (VENDEDOR) y `cliente@gmail.com` (CLIENTE). El login comprueba sus contraseñas BCrypt en MariaDB.
+Al iniciar, la aplicación crea estas cuentas si todavía no existen:
 
-Antes de crear cuentas que todavía no existen, definir contraseñas privadas de **4 a 10 caracteres**, el rango que ya utiliza el formulario de login. Usar valores distintos y no compartirlos en Git.
+| Correo | Rol |
+| --- | --- |
+| admin@duoc.cl | ADMIN |
+| vendedor@duoc.cl | VENDEDOR |
+| cliente@gmail.com | CLIENTE |
+
+Para crearlas, configura contraseñas privadas y distintas de 4 a 10 caracteres, que es el rango permitido por el formulario actual:
 
 ```powershell
 foreach ($rol in @('ADMIN', 'VENDEDOR', 'CLIENTE')) {
-    $claveDemo = Read-Host "Contraseña privada para demo $rol (4 a 10 caracteres)" -AsSecureString
+    $claveDemo = Read-Host "Contraseña demo $rol (4 a 10 caracteres)" -AsSecureString
     [Environment]::SetEnvironmentVariable(
         "DEMO_${rol}_PASSWORD",
         [System.Net.NetworkCredential]::new('', $claveDemo).Password,
@@ -65,18 +94,20 @@ foreach ($rol in @('ADMIN', 'VENDEDOR', 'CLIENTE')) {
 }
 ```
 
-`DataInitializer` solo crea las cuentas faltantes. Si una de ellas no tiene contraseña configurada válida, falla antes de insertar ninguna cuenta pendiente y solo informa el nombre de la variable. Si las cuentas ya existen, no exige estas variables, no cambia contraseñas ni modifica roles. Cambiar una variable no restablece una contraseña existente.
+Si las cuentas ya existen, conservan sus contraseñas y roles. Cambiar estas variables no restablece sus contraseñas.
 
-## 4. Preparar el esquema inicial, solo una vez en una base vacía
+## Preparar una base vacía
 
-Confirmar el destino con un cliente SQL y comprobar que `SHOW TABLES` no devuelve tablas. No ejecutar esta preparación sobre una base existente.
+Este paso se realiza una sola vez. Comprueba primero el destino desde tu cliente SQL:
 
 ```sql
 SELECT DATABASE(), CURRENT_USER(), @@hostname;
 SHOW TABLES;
 ```
 
-Desde el repositorio, con JDK 17 y las variables anteriores disponibles:
+Continúa únicamente si seleccionaste la base correcta y no tiene tablas.
+
+Compila e inicia el backend con creación inicial del esquema:
 
 ```powershell
 .\mvnw.cmd -DskipTests clean package
@@ -84,43 +115,44 @@ $env:JPA_DDL_AUTO = 'create-only'
 java -jar target/pasteleria-0.0.1-SNAPSHOT.jar --spring.jpa.properties.hibernate.hbm2ddl.halt_on_error=true
 ```
 
-El arranque crea `usuario`, `categoria`, `producto`, `boleta` y `detalle_boleta`; después crea las tres cuentas demo que falten. Comprobar el inicio correcto y los datos. Detener únicamente ese proceso con `Ctrl+C`. Las categorías y productos de demostración se agregan desde la aplicación; no se copian ni reinicializan bases existentes.
+Se crean las tablas de usuarios, categorías, productos, boletas y detalles, además de las cuentas demo faltantes.
 
-## 5. Ejecución normal con validación
+Cuando termine de iniciar, detén ese proceso con `Ctrl+C`. Los productos y categorías se pueden agregar después desde el panel administrativo.
 
-En la misma terminal y manteniendo las credenciales y la clave JWT de la instalación:
+No utilices este paso sobre una base que ya tenga datos.
+
+## Ejecución normal
+
+Con las variables anteriores configuradas:
 
 ```powershell
 $env:JPA_DDL_AUTO = 'validate'
 java -jar target/pasteleria-0.0.1-SNAPSHOT.jar
 ```
 
-`validate` es el valor predeterminado. Si el esquema falta o es incompatible, el arranque falla en lugar de modificarlo. No usar `update` para resolver ese fallo automáticamente. No se ejecutan scripts SQL de inicialización.
+`validate` comprueba el esquema sin modificarlo. Si falta una tabla o hay una incompatibilidad, el backend informa el error al iniciar.
 
-Con el puerto del ejemplo:
+Con los puertos del ejemplo:
 
-- API: `http://localhost:8080/api/v1`.
-- Swagger UI: `http://localhost:8080/swagger-ui.html`.
-- OpenAPI: `http://localhost:8080/v3/api-docs`.
+- API: http://localhost:8080/api/v1
+- Swagger: http://localhost:8080/swagger-ui.html
+- OpenAPI: http://localhost:8080/v3/api-docs
 
-## Permisos y comprobaciones
+En React, configura `VITE_API_URL=http://localhost:8080/api/v1`. Su dirección debe coincidir con el origen permitido en `APP_CORS_ORIGINS`.
 
-ADMIN conserva las funciones administrativas. VENDEDOR solo consulta productos y órdenes. CLIENTE compra y consulta sus propias boletas. POST `/api/v1/boletas` admite únicamente ADMIN y CLIENTE. La configuración no cambia cálculos de compra, CRUD, catálogo ni contratos HTTP.
+Las variables se configuran en el proceso que ejecuta Java. Al iniciar directamente con `java -jar`, Spring Boot no carga automáticamente un archivo `.env`.
 
-Pruebas seleccionadas sin base de datos (mocks y configuración en memoria):
+## Equipo
 
-```powershell
-.\mvnw.cmd '-Dtest=DataInitializerTest,ConfiguracionSeguraTest,RolesSecurityTest,BoletaServiceTest,UsuarioServiceTest,JwtServiceTest' test
-```
+- Jael Reyes.
+- Aileen Oyaneder.
+- Benjamin Riquelme Pozo.
 
-No ejecutar el test de contexto completo contra una base existente sin revisar previamente su destino. Los valores que aparecen en fixtures de tests son sintéticos y no son las claves de las cuentas demo de una instalación.
+Desarrollo Fullstack II · Sección 003D  
+Docente: VICTOR HUGO GOMEZ ATABALES  
+Evaluación Parcial 3 (EV3)
 
-## Compose existente (opcional)
+## Documentación
 
-`docker-compose.yml` conserva su alternativa MySQL 8.4 y el volumen existente; no es necesario usarlo para ejecutar el backend con una MariaDB externa. Exige `MYSQL_ROOT_PASSWORD`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` y `JWT_SECRET`; las tres variables `DEMO_*_PASSWORD` se necesitan si faltan cuentas. No admite root sin contraseña y utiliza un usuario distinto de root para la aplicación.
-
-El puerto de base se puede configurar con `DB_PORT` y el del backend con `BACKEND_PORT`. El esquema no se modifica por defecto (`validate`); `JPA_DDL_AUTO=create-only` se utiliza únicamente para una base vacía. No reutilizar ni recrear volúmenes existentes para preparar otra instalación. No ejecutar Compose con secretos dentro del archivo. Un `.env` local, si se usa para Compose, está ignorado por Git; Spring Boot ejecutado directamente utiliza las variables de su proceso, no carga ese archivo automáticamente.
-
-## Documentación de entrega
-
-Los documentos EV3 y capturas están en `docs` del repositorio frontend: https://github.com/jaelreyes/pasteleria-react. Los documentos y ZIP de entrega están actualizados con la configuración corregida y verificada. Las portadas incorporan los datos académicos oficiales: integrantes Jael Reyes; Aileen Oyaneder; Benjamin Riquelme Pozo; docente VICTOR HUGO GOMEZ ATABALES; sección 003D; asignatura Desarrollo Fullstack II; evaluación Evaluación Parcial 3 (EV3). No se ha realizado commit ni push.
+- [Frontend](https://github.com/jaelreyes/pasteleria-react).
+- [Documentación y evidencias EV3](https://github.com/jaelreyes/pasteleria-react/tree/main/docs).
